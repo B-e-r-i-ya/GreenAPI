@@ -1,3 +1,4 @@
+from flask import Flask, jsonify, request, abort
 import requests
 
 class GreenAPI():
@@ -154,7 +155,15 @@ def FormTemplateButtons(templatebutton):
     return buttons
 
 #rint(str(FormButtons(buttons)))
-WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae")
-test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
-print(test.text.encode('utf8'))
+WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://172.25.50.127:9001')
+#test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
+#print(test.text.encode('utf8'))
 
+app = Flask(__name__)
+
+@app.route('/', methods=['POST'])
+def hello():
+    print(request)
+    return '200'
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=9002)
