@@ -149,7 +149,6 @@ def database(HostDB, UserDB, PassDB, NameDB, type, sql):
             if type == 'write':
                 cursor.execute(sql)
                 cnx.commit()
-            cnx.close()
     except pymysql.Error as err:
         print(err)
         cnx.close()
@@ -188,7 +187,7 @@ def FormTemplateButtons(templatebutton):
     return buttons
 
 #rint(str(FormButtons(buttons)))
-WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://31.186.145.79:9002')
+WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://31.186.145.79:9001')
 #test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
 #print(test.text.encode('utf8'))
 
@@ -200,16 +199,28 @@ def gateway(data):
     '''
 
     print(data)
+    if data['typeWebhook'] == 'stateInstanceChanged':
+        return 200
+    elif data['typeWebhook'] == 'incomingMessageReceived':
+        sql = 'INSERT INTO `whatsapp`.`messages` ' \
+              '(`id_message`, `timestamp`, `sender_chatid`, `sender_name`, `type_message`) VALUES ' \
+              '(\'' + str(data['idMessage']) + '\',' \
+              ' \'' + str(data['timestamp']) + '\',' \
+              ' \'' + str(data['senderData']['chatId']) + '\',' \
+              ' \'' + str(data['senderData']['senderName']) + '\',' \
+              ' \'' + str(data['messageData']['typeMessage']) + '\');'
+        print(sql)
+        #try:
+        database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+        if data['messageData']['typeMessage'] == 'textMessage':
+            sql = 'INSERT INTO `whatsapp`.`text_message` ' \
+                  '(`id_message`, `text_message`) VALUES ' \
+                  '(\'' + str(data['idMessage']) + '\',' \
+                  ' \'' + str(data['messageData']['textMessageData']['textMessage']) + '\');'
+            database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
 
-    sql = 'INSERT INTO `whatsapp`.`messages` ' \
-          '(`id_message`, `timestamp`, `sender_chatid`, `sender_name`) VALUES ' \
-          '(\'' + str(data['idMessage']) + '\',' \
-          ' \'' + str(data['timestamp']) + '\',' \
-          ' \'' + str(data['senderData']['chatId']) + '\', \'' + str(data['senderData']['senderName']) + '\');'
-    print(sql)
-    #try:
-    database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
-
+    else:
+        return 200
 
 
 app = Flask(__name__)
@@ -220,4 +231,4 @@ def hello():
     gateway(request.json)
     return '200'
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=9002)
+    app.run(host='0.0.0.0', port=9001)

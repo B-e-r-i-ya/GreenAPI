@@ -6,7 +6,7 @@ CREATE TABLE `whatsapp`.`messages` (
   `sender_chatid` VARCHAR(45) NULL DEFAULT 'id чата пользователя который пишет',
   `sender_name` VARCHAR(45) NULL DEFAULT 'имя пользователя',
   `type_message` VARCHAR(45) NULL DEFAULT 'тип сообщения',
-  PRIMARY KEY (`id`, `id_messages`))
+  PRIMARY KEY (`id`, `id_message`))
 COMMENT = 'Хранение обшей информации о сообщениях';
 CREATE TABLE `whatsapp`.`text_message` (
   `id` INT NOT NULL AUTO_INCREMENT,
