@@ -1,5 +1,12 @@
 from flask import Flask, jsonify, request, abort
 import requests
+import pymysql
+
+#===========Variables===============
+UserDB = 'root'
+PassDB = 'BSqr1988ZD'
+HostDB = 'localhost'
+NameDB = 'whatsapp'
 
 class GreenAPI():
     idInstance = ''
@@ -15,7 +22,7 @@ class GreenAPI():
                           "\r\n\t\"countryInstance\": \"ru\"," \
                           "\r\n\t\"webhookUrl\": \"" + webhookInstance + "\"," \
                           "\r\n\t\"delaySendMessagesMilliseconds\": 1000," \
-                          "\r\n\t\"markIncomingMessagesReaded\": \"no\"," \
+                          "\r\n\t\"markIncomingMessagesReaded\": \"yes\"," \
                           "\r\n\t\"outgoingWebhook\": \"yes\"," \
                           "\r\n\t\"stateWebhook\": \"yes\"," \
                           "\r\n\t\"incomingWebhook\": \"yes\"," \
@@ -122,6 +129,32 @@ class GreenAPI():
         except requests.ConnectionError as e:
             print(e)
 
+def database(HostDB, UserDB, PassDB, NameDB, type, sql):
+    '''
+
+    :param HostDB:
+    :param UserDB:
+    :param PassDB:
+    :param NameDB:
+    :param type: тип запроса к базе read = чтение(select)
+    :param sql:
+    :return:
+    '''
+    try:
+        cnx = pymysql.connect(user=UserDB, password=PassDB,
+                                         host=HostDB,
+                                         database=NameDB)
+        with cnx:
+            cursor = cnx.cursor()
+            if type == 'write':
+                cursor.execute(sql)
+                cnx.commit()
+            cnx.close()
+    except pymysql.Error as err:
+        print(err)
+        cnx.close()
+
+
 buttons = ["Привет", "Пока"]
 def FormButtons(button):
     i = 1
@@ -155,15 +188,36 @@ def FormTemplateButtons(templatebutton):
     return buttons
 
 #rint(str(FormButtons(buttons)))
-WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://172.25.50.127:9001')
+WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://31.186.145.79:9002')
 #test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
 #print(test.text.encode('utf8'))
+
+def gateway(data):
+    '''
+
+    :param data: json ответ от API
+    :return:
+    '''
+
+    print(data)
+
+    sql = 'INSERT INTO `whatsapp`.`messages` ' \
+          '(`id_message`, `timestamp`, `sender_chatid`, `sender_name`) VALUES ' \
+          '(\'' + str(data['idMessage']) + '\',' \
+          ' \'' + str(data['timestamp']) + '\',' \
+          ' \'' + str(data['senderData']['chatId']) + '\', \'' + str(data['senderData']['senderName']) + '\');'
+    print(sql)
+    #try:
+    database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+
+
 
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def hello():
-    print(request)
+
+    gateway(request.json)
     return '200'
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=9002)
