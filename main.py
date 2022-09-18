@@ -7,6 +7,7 @@ UserDB = 'root'
 PassDB = 'BSqr1988ZD'
 HostDB = 'localhost'
 NameDB = 'whatsapp'
+FilePath = "file/"
 
 class GreenAPI():
     idInstance = ''
@@ -149,9 +150,15 @@ def database(HostDB, UserDB, PassDB, NameDB, type, sql):
             if type == 'write':
                 cursor.execute(sql)
                 cnx.commit()
+            elif type == 'read':
+                cur = cnx.cursor()
+                cur.execute("SELECT VERSION()")
+                return cur.fetchone()
     except pymysql.Error as err:
         print(err)
         cnx.close()
+
+
 
 
 buttons = ["Привет", "Пока"]
@@ -186,11 +193,6 @@ def FormTemplateButtons(templatebutton):
     buttons = buttons[:-1] + "]"
     return buttons
 
-#rint(str(FormButtons(buttons)))
-WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://31.186.145.79:9001')
-#test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
-#print(test.text.encode('utf8'))
-
 def gateway(data):
     '''
 
@@ -199,6 +201,7 @@ def gateway(data):
     '''
 
     print(data)
+    database(HostDB, UserDB, PassDB, NameDB, 'write', "DELETE FROM `whatsapp`.`stage` WHERE timestamp < (CURDATE() - INTERVAL 1 MINUTE);")
     if data['typeWebhook'] == 'stateInstanceChanged':
         return 200
     elif data['typeWebhook'] == 'incomingMessageReceived':
@@ -209,7 +212,7 @@ def gateway(data):
               ' \'' + str(data['senderData']['chatId']) + '\',' \
               ' \'' + str(data['senderData']['senderName']) + '\',' \
               ' \'' + str(data['messageData']['typeMessage']) + '\');'
-        print(sql)
+        #print(sql)
         #try:
         database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
         if data['messageData']['typeMessage'] == 'textMessage':
@@ -218,10 +221,74 @@ def gateway(data):
                   '(\'' + str(data['idMessage']) + '\',' \
                   ' \'' + str(data['messageData']['textMessageData']['textMessage']) + '\');'
             database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
-
+        elif data['messageData']['typeMessage'] == 'extendedTextMessage':
+            sql = 'INSERT INTO `whatsapp`.`text_message` ' \
+                  '(`id_message`, `text_message`) VALUES ' \
+                  '(\'' + str(data['idMessage']) + '\',' \
+                                                   ' \'' + str(
+                data['messageData']['textMessageData']['textMessage']) + '\');'
+        elif data['messageData']['typeMessage'] in ["imageMessage", "videoMessage", "documentMessage", "audioMessage"]:
+            path = FilePath + data['messageData']['fileMessageData']['fileName']
+            with open(path, 'wb') as f:
+                f.write(requests.get(data['messageData']['fileMessageData']['downloadUrl']).content)
+            sql = 'INSERT INTO `whatsapp`.`mediaMessage` ' \
+                  '(`id_message`, `downloadUrl`, `caption`, `path`) VALUES ' \
+                  '(\'' + str(data['idMessage']) + '\',' \
+                  ' \'' + str(data['messageData']['fileMessageData']['downloadUrl']) + '\',' \
+                  ' \'' + str(data['messageData']['fileMessageData']['caption']) + '\',' \
+                  ' \'' + path + '\');'
+            database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+        elif data['messageData']['typeMessage'] == 'buttonsResponseMessage':
+            sql = 'INSERT INTO `whatsapp`.`buttonsResponseMessage` ' \
+                  '(`id_message`, `stanzaId`, `selectedButtonId`, `selectedButtonText`) VALUES ' \
+                  '(\'' + str(data['idMessage']) + '\',' \
+                  ' \'' + str(data['messageData']['buttonsResponseMessage']['stanzaId']) + '\',' \
+                  ' \'' + str(data['messageData']['buttonsResponseMessage']['selectedButtonId']) + '\',' \
+                  ' \'' + str(data['messageData']['buttonsResponseMessage']['selectedButtonText']) + '\');'
+            database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+        else:
+            sql = 'INSERT INTO `whatsapp`.`log` ' \
+                  '(`id_message`, `timestamp`, `json`) VALUES ' \
+                  '(\'' + str(data['idMessage']) + '\',' \
+                  ' \'' + str(data['timestamp']) + '\',' \
+                  ' \'' + str(data).replace('\'', '\"') + '\');'
+            print(sql)
+            database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+            return 200
+        print(database(HostDB, UserDB, PassDB, NameDB, 'read', sql))
     else:
+        sql = 'INSERT INTO `whatsapp`.`log` ' \
+              '(`id_message`, `timestamp`, `json`) VALUES ' \
+              '(\'' + str(data['idMessage']) + '\',' \
+              ' \'' + str(data['timestamp']) + '\',' \
+              ' \'' + str(data).replace('\'','\"') + '\');'
+        database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
         return 200
 
+#rint(str(FormButtons(buttons)))
+WC = GreenAPI("1101754804", "d660db8008434810a96c21062cd770d2e24ed3415d534f9fae", webhookInstance='http://31.186.145.79:9001')
+#test = WC.SendButton(chatId="79237246968@c.us", message="Херня", buttons=FormButtons(buttons), footer="Нажми")
+#print(test.text.encode('utf8'))
+
+
+'''try:
+    con = pymysql.connect(user=UserDB, password=PassDB,
+                          host=HostDB,
+                          database=NameDB)
+    con.close()
+except pymysql.Error as err:
+    print(type(err))
+    if str(err) == "(1049, \"Unknown database 'whatsapp'\")":
+        con = pymysql.connect(user=UserDB, password=PassDB,
+                              host=HostDB)
+        with open("db.sql") as file:
+            sql = file.read()
+            print(sql)
+        with con:
+            cursor = con.cursor()
+            if type == 'write':
+                cursor.execute(sql)
+                con.commit()'''
 
 app = Flask(__name__)
 
