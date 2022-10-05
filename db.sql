@@ -56,7 +56,7 @@ COMMENT = 'все что не обрабатывается';
 CREATE TABLE `whatsapp`.`stage` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `chatid` VARCHAR(45) NOT NULL,
-  `timestamp` timestamp 'время сообщения',
+  `timestamp` timestamp ,
   `stage` VARCHAR(1000) NULL DEFAULT 'Этап общения с клиентом',
   PRIMARY KEY (`id`, `chatid`))
 COMMENT = 'все что не обрабатывается';
