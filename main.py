@@ -89,7 +89,7 @@ class GreenAPI():
             payload = '''{
                                         "chatId": "''' + str(chatId) + '''",
                                         "message": "''' + str(message) + '''",
-                                        "buttons": ''' + buttons + '''
+                                        "buttons": ''' + str(buttons) + '''
                                     }
                                     '''
         else:
@@ -138,9 +138,15 @@ class GreenAPI():
             print(e)
 
 def editing_time(time_editer):
-    temp = time_editer.split()
-    time_editer = "c " + str(datetime.strptime(temp[0], '%Y-%m-%dT%H:%M:%S').hour) + " до " + str(
-        datetime.strptime(temp[1], '%Y-%m-%dT%H:%M:%S').hour)
+    temp = time_editer
+    time_editer = f"c {str(datetime.strptime(temp['dateFrom'], '%Y-%m-%dT%H:%M:%S').hour)} до {str(datetime.strptime(temp['dateBy'], '%Y-%m-%dT%H:%M:%S').hour)}"
+    return time_editer
+
+def editing_date(date_editer):
+    temp = date_editer
+    time_editer = []
+    for item in temp:
+        time_editer.append(f"{str(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').day)} {str(mounth(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').month))}")
     return time_editer
 
 def mounth(mounth):
@@ -296,8 +302,10 @@ def logingdata(data):
 def API1C(phonnuber):
     auth = HTTPBasicAuth(URL1CAPIUSER, URL1CAPIPASS)
     url = URL1CAPI + phonnuber
+    #print(url)
     resp = requests.get(url=url, auth=auth)
     content = resp.json()
+    #print(content)
     return content
 
 def greeting_generator():
@@ -346,49 +354,69 @@ def dbmigrate():
             print(err)
 
 def repeate_order(data):
-
+    sql = "SELECT stage.stage FROM whatsapp.stage where stage.chatid='" + str(data['senderData']['chatId']) + "';"
+    # print(sql)
+    stage = (database(HostDB, UserDB, PassDB, NameDB, 'read', sql))
     # если клиент выбрал "Повторить заказ"
-    api1c = API1C(data['senderData']['chatId'].rstrip('@c.us'))
-    if 'error' in api1c:
-        #print(api1c['error'])
-        message = api1c['error']
-        if message in ["Нет партнера с таким номером телефона", "Более одного партнера с главным номером",
-                       "Партнер не является физическим лицом", "Нет адреса доставки подходящего критериям",
-                       "Более одного адреса доставки", "В адресе доставки не указана зона доставки"]:
-            print(message)
-            WC.SendMessage(data['senderData']['chatId'], "К сожалению, Ваш номер не привязан к функции «Повторить заказ».\\n" 
-                                                            "Привязать его можно прямо сейчас. Это займёт всего 2 минуты.\\n"
-                                                            "Напишите данные, которые Вы используете при заказе воды:\\n"
-                                                            "- Фамилия, имя, отчество / Наименование организации\\n"
-                                                            "- Адрес доставки\\n")
-        elif message in ["У партнера есть заказ на вчера, сегодня, завтра",
-                         "У партнера последний заказ не соответствующий критериям",
-                         "У партнера в последнем заказе есть товар не соответствующий критериям"]:
-            WC.SendMessage(data['senderData']['chatId'], "К сожалению, Ваш последний заказ не подходит по параметрам для автоматического повторения.\\n"
-                                                        "Оставайтесь в диалоге, оператор подключиться к Вам в течение  2 минут.\\n"
-                                                        "Чтобы не ждать ответа оператора оформите свой заказ на сайте прямо сейчас:\\n"
-                                                        " https://777-777.org\\n")
+    api1c = API1C(data['senderData']['chatId'].rstrip('@c.us').replace('7', '', 1))
+    if int(stage[0]) == 1:
+        # если этап 1
+        #print(data['messageData']['typeMessage'])
+        if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
+            # Если нажата кнопка клиентом
+            #print(data['messageData']['buttonsResponseMessage']['selectedButtonId'])
+            if int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 1:
+                if 'error' in api1c:
+                    print(api1c)
+                    message = api1c['error']
+                    if message in ["Нет партнера с таким номером телефона", "Более одного партнера с главным номером",
+                                   "Партнер не является физическим лицом", "Нет адреса доставки подходящего критериям",
+                                   "Более одного адреса доставки", "В адресе доставки не указана зона доставки"]:
+                        print(message)
+                        WC.SendMessage(data['senderData']['chatId'],
+                                       "К сожалению, Ваш номер не привязан к функции «Повторить заказ».\\n"
+                                       "Привязать его можно прямо сейчас. Это займёт всего 2 минуты.\\n"
+                                       "Напишите данные, которые Вы используете при заказе воды:\\n"
+                                       "- Фамилия, имя, отчество / Наименование организации\\n"
+                                       "- Адрес доставки\\n")
+                    elif message in ["У партнера есть заказ на вчера, сегодня, завтра",
+                                     "У партнера последний заказ не соответствующий критериям",
+                                     "У партнера в последнем заказе есть товар не соответствующий критериям"]:
+                        WC.SendMessage(data['senderData']['chatId'],
+                                       "К сожалению, Ваш последний заказ не подходит по параметрам для автоматического повторения.\\n"
+                                       "Оставайтесь в диалоге, оператор подключиться к Вам в течение  2 минут.\\n"
+                                       "Чтобы не ждать ответа оператора оформите свой заказ на сайте прямо сейчас:\\n"
+                                       " https://777-777.org\\n")
+                else:
+                    print('Нет ошибок')
+            elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 2:
+                print("Оформляем первый заказ!")
+            elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 3:
+                print("Уузнаем о бонусах")
+                WC.SendButton(str(data['senderData']['chatId']), 'Как получить полезные подарки?', buttons=FormButtons(
+                    ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
+                              footer='выберите нужный вариант')
+
     else:
-        message = "На адрес: " + str((api1c.json()[0])['address']) + "\\n" + "доставка доступна:\\n"
+        message = f"На адрес: {str((api1c[0])['address'])}\\nдоставка доступна:\\n"
         button = []
-        for elem in api1c.json()[1]:
-            '''button.append(str((datetime.strptime(elem['date'], '%Y-%m-%dT%H:%M:%S')).strftime('%Y.%m.%d')) + " с " + str((datetime.strptime(elem['dateFrom'], '%Y-%m-%dT%H:%M:%S')).strftime(
-                    '%H:%M')) + " до " + str((datetime.strptime(elem['dateBy'], '%Y-%m-%dT%H:%M:%S')).strftime('%H:%M')))'''
-            button.append(editing_time(elem))
-        print(message)
+        for elem in api1c[1]:
+            print("elem: " + str(elem))
+            if not (elem['date'] in button):
+                button.append(elem)
         print(button)
-        WC.SendButton(str(data['senderData']['chatId']), message, button)
+        WC.SendButton(str(data['senderData']['chatId']), message, FormButtons(editing_date(button)))
         id = database(HostDB, UserDB, PassDB, NameDB, 'read',
                       "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
                           data['senderData']['chatId']) + "';")
         database(HostDB, UserDB, PassDB, NameDB, 'write',
-                 "UPDATE `whatsapp`.`stage` SET `stage` = '2' WHERE(`id` = '" + id[
-                     0] + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
-        WC.SendButton(str(data['senderData']['chatId']),
+                 "UPDATE `whatsapp`.`stage` SET `stage` = '2' WHERE(`id` = '" + str(id[
+                     0]) + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
+        '''WC.SendButton(str(data['senderData']['chatId']),
                       '',
                       buttons=FormButtons(
                           ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
-                      footer='выберите нужный вариант')
+                      footer='выберите нужный вариант')'''
 
 def error(data):
     sql = "SELECT stage_error.stage FROM whatsapp.stage_error where stage_error.chatid='" + str(data['senderData']['chatId']) + "';"
@@ -415,37 +443,43 @@ def error(data):
 def gateway(data):
     if data['typeWebhook'] == 'incomingMessageReceived':
         #print(data['senderData']['chatId'])
-        sql = "SELECT stage.stage FROM whatsapp.stage where stage.chatid='" + str(data['senderData']['chatId']) + "';"
+        sql = "SELECT stage.stage_type FROM whatsapp.stage where stage.chatid='" + str(data['senderData']['chatId']) + "';"
         #print(sql)
         stage = (database(HostDB, UserDB, PassDB, NameDB, 'read', sql))
-        #print(stage)
+        print(stage)
         if stage == None:
             #Если первая беседа
-            message = str(greeting_generator()) +'\\nМеня зовут Ева👩🏼‍💼, я электронный менеджер по приему *заказов воды «Легенда жизни»*\\n' \
+            '''message = str(greeting_generator()) +'\\nМеня зовут Ева👩🏼‍💼, я электронный менеджер по приему *заказов воды «Легенда жизни»*\\n' \
                       'Для нашего общения, я подготовила удобное меню\\n' \
                       '👉🏻пришлите, пожалуйста, в ответном сообщении цифру соответствующую выбранному пункту:\\n\\n'
+            '''
+            message = f'{str(greeting_generator())} \\nМеня зовут Ева👩🏼‍💼, я электронный менеджер по приему *заказов воды «Легенда жизни»*\\n' \
+                                        'Для нашего общения, я подготовила удобное меню\\n'
             #print(message)
             WC.SendButton(str(data['senderData']['chatId']), message, buttons=FormButtons(["Повторить заказ", "Оформить первый заказ", "Узнать о бонусах за онлайн заказ"]), footer='выберите нужный вариант')
             sql = "INSERT INTO `whatsapp`.`stage` (`chatid`, `timestamp`, `stage`) VALUES ('" + str(data['senderData']['chatId'] + "', '" + str(data['timestamp'])) + "', '1');"
             #print(sql)
             print(database(HostDB, UserDB, PassDB, NameDB, 'write', sql))
-        elif int(stage[0]) == 1:
-            #если этап 1
-            #print(data)
+        elif stage == 'rep_stage':
+            repeate_order(data)
+        else:
             if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
-                #Если нажата кнопка клиентом
-                #print(type(data['messageData']['buttonsResponseMessage']['selectedButtonId']))
                 if int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 1:
+                    id = database(HostDB, UserDB, PassDB, NameDB, 'read',
+                                  "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
+                                      data['senderData']['chatId']) + "';")
+                    database(HostDB, UserDB, PassDB, NameDB, 'write',
+                             "UPDATE `whatsapp`.`stage` SET `stage_type` = 'rep_stage' WHERE(`id` = '" + str(id[0]) + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
                     repeate_order(data)
                 elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 2:
                     print("Оформляем первый заказ!")
                 elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 3:
-                    print("Уузнаем о бонусах")
+                    print("Узнаем о бонусах")
                     WC.SendButton(str(data['senderData']['chatId']), 'Как получить полезные подарки?', buttons=FormButtons(
                         ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
                                   footer='выберите нужный вариант')
             else:
-                error(data)
+                print("Не правильный ответ")
 
     else:
         return 200
