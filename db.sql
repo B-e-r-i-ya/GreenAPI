@@ -70,7 +70,10 @@ COMMENT = 'все что не обрабатывается';
 CREATE TABLE `whatsapp`.`new_order` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `chatid` VARCHAR(45) NULL,
-  `date_order` VARCHAR(45) NULL,
-  `time_delivery` VARCHAR(45) NULL,
+  `date` VARCHAR(45) NULL,
+  `datefrom` VARCHAR(45) NULL,
+  `dateby` VARCHAR(45) NULL,
+  `kodpartner` VARCHAR(45) NULL,
+  `order_placed` TINYINT NULL,
   PRIMARY KEY (`id`))
 COMMENT = 'для сбора нового заказа';
