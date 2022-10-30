@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request, abort
 import requests
+import time
 import pymysql
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
+from threading import Thread
 #===========Variables===============
 
 
@@ -97,7 +99,7 @@ class GreenAPI():
                                         "chatId": "''' + str(chatId) + '''",
                                         "message": "''' + str(message) + '''",
                                         "footer": "''' + str(footer) + '''",
-                                        "buttons": ''' + buttons + '''
+                                        "buttons": ''' + str(buttons) + '''
                                     }
                                     '''
         try:
@@ -105,6 +107,8 @@ class GreenAPI():
             headers = {'Content-Type': 'application/json'}
 
             response = requests.request("POST", url, headers=headers, data=payload.encode("UTF-8"))
+            print(payload)
+            print(response.json())
             return response
         except requests.ConnectionError as e:
             print(e)
@@ -144,12 +148,14 @@ def editing_time(time_editer):
 
 def editing_date(date_editer):
     temp = date_editer
-    time_editer = []
+    date_editer = []
     for item in temp:
-        time_editer.append(f"{str(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').day)} {str(mounth(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').month))}")
-    return time_editer
+        date_editer.append(f"{str(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').day)} {str(mounth(datetime.strptime(item['date'], '%Y-%m-%dT%H:%M:%S').month))}")
+    print(date_editer)
+    return date_editer
 
 def mounth(mounth):
+    if type(mounth) == int:
         array_mounth = [
             'января',
             'февраля',
@@ -165,6 +171,23 @@ def mounth(mounth):
             'декабря'
         ]
         return array_mounth[mounth - 1]
+
+    elif type(mounth) == str:
+        array_mounth = {
+            'января': "1",
+            'февраля': "2",
+            'марта': "3",
+            'апреля': "4",
+            'мая': "5",
+            'июня': "6",
+            'июля': "7",
+            'августа': "8",
+            'сентября': "9",
+            'октября': "10",
+            'ноября': "11",
+            'декабря': "12"
+            }
+        return array_mounth[mounth]
 
 
 def database(HostDB, UserDB, PassDB, NameDB, type, sql):
@@ -223,11 +246,12 @@ def logingdata(data):
     :param data: json ответ от API
     :return:
     '''
+    print("Loging: ")
     sql = 'INSERT INTO `whatsapp`.`log` ' \
           '(`timestamp`, `json`) VALUES ' \
           ' (\'' + str(data['timestamp']) + '\',' \
           ' \'' + str(data).replace('\'', '\"') + '\');'
-    #print(sql)
+    print(sql)
     database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
     #print(data)
     #database(HostDB, UserDB, PassDB, NameDB, 'write', "DELETE FROM `whatsapp`.`stage` WHERE timestamp < (CURDATE() - INTERVAL 1 MINUTE);")
@@ -354,6 +378,7 @@ def dbmigrate():
             print(err)
 
 def repeate_order(data):
+    print('repeate_order')
     sql = "SELECT stage.stage FROM whatsapp.stage where stage.chatid='" + str(data['senderData']['chatId']) + "';"
     # print(sql)
     stage = (database(HostDB, UserDB, PassDB, NameDB, 'read', sql))
@@ -364,10 +389,9 @@ def repeate_order(data):
         #print(data['messageData']['typeMessage'])
         if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
             # Если нажата кнопка клиентом
-            #print(data['messageData']['buttonsResponseMessage']['selectedButtonId'])
-            if int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 1:
+            #print(data['messageData']['buttonsResponseMessage'])
+            if data['messageData']['buttonsResponseMessage']['selectedButtonText'] == 'Повторить заказ':
                 if 'error' in api1c:
-                    print(api1c)
                     message = api1c['error']
                     if message in ["Нет партнера с таким номером телефона", "Более одного партнера с главным номером",
                                    "Партнер не является физическим лицом", "Нет адреса доставки подходящего критериям",
@@ -388,23 +412,82 @@ def repeate_order(data):
                                        "Чтобы не ждать ответа оператора оформите свой заказ на сайте прямо сейчас:\\n"
                                        " https://777-777.org\\n")
                 else:
+                    #print(api1c)
                     print('Нет ошибок')
-            elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 2:
+                    if api1c[1] == []:
+                        WC.SendButton(data['senderData']['chatId'], "К сожалению доставка по вашему адресу на бижайшии дни не доступна!", buttons=FormButtons(
+                    ["Оформить первый заказ", "Узнать о бонусах за онлайн-заказы","Перевести в чат с оператором"]))
+
+                    else:
+                        address = api1c[0]['address']
+                        button = []
+                        for elem in api1c[1]:
+                            print(f"{str(datetime.strptime(elem['date'], '%Y-%m-%dT%H:%M:%S').day)} {str(mounth(datetime.strptime(elem['date'], '%Y-%m-%dT%H:%M:%S').month))}")
+                            temp_elem = f"{str(datetime.strptime(elem['date'], '%Y-%m-%dT%H:%M:%S').day)} {str(mounth(datetime.strptime(elem['date'], '%Y-%m-%dT%H:%M:%S').month))}"
+                            if not (temp_elem in button):
+                                button.append(temp_elem)
+                            else:
+                                print("Элемент есть!")
+
+                        print(button)
+                        #WC.SendButton(data['senderData']['chatId'], f'Мы уже готовы доставить "Легенду" по адресу { str(address) } .', FormButtons(button), footer='Просто выберите дату:')
+                        WC.SendButton(data['senderData']['chatId'],
+                                      f"Мы уже готовы доставить 'Легенду' по адресу {str(address)} .",
+                                      FormButtons(button), footer='Просто выберите дату:')
+                        id = database(HostDB, UserDB, PassDB, NameDB, 'read',
+                                      "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
+                                          data['senderData']['chatId']) + "';")
+                        database(HostDB, UserDB, PassDB, NameDB, 'write',
+                                 "UPDATE `whatsapp`.`stage` SET `stage` = '2' WHERE(`id` = '" + str(
+                                     id[0]) + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
+            elif data['messageData']['buttonsResponseMessage']['selectedButtonText'] == 'Оформляем первый заказ!':
                 print("Оформляем первый заказ!")
-            elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 3:
-                print("Уузнаем о бонусах")
+            elif data['messageData']['buttonsResponseMessage']['selectedButtonText'] == 'Узнать о бонусах за онлайн-заказ':
+                print("Узнаем о бонусах")
                 WC.SendButton(str(data['senderData']['chatId']), 'Как получить полезные подарки?', buttons=FormButtons(
                     ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
                               footer='выберите нужный вариант')
+    elif int(stage[0]) == 2:
+        print("!!!!stage 2!!!!!")
+        if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
+            date = data['messageData']['buttonsResponseMessage']['selectedButtonText']
+            date = date.split()
+            id = database(HostDB, UserDB, PassDB, NameDB, 'read',f"SELECT id FROM whatsapp.stage where stage.chatid='{str(data['senderData']['chatId'])}';")
+            date = f"{str(datetime.today().year)}-{str(mounth(date[1]))}-{str(date[0])}T00:00:00"
+            print(database(HostDB, UserDB, PassDB, NameDB, 'write', f"INSERT INTO `whatsapp`.`new_order` (`chatid`, `date`, `datefrom`, `dateBy`, `kodpartner`) VALUES ('{str(data['senderData']['chatId'])}', '{str(date)}', '', '', {str(api1c['kodpartner'])}';"))
+            time = []
+            for item in api1c[1]:
+                #print("item: " + str(item['date']))
+                #print(f'date: {str(date)}')
+                if str(item['date']) == str(date):
+                    print("time: " + str(editing_time(item)))
+                    time.append(editing_time(item))
+
+            WC.SendButton(data['senderData']['chatId'],
+                          f"Какое время будет удобно?",
+                          FormButtons(time), footer='Просто выберите время:')
+            database(HostDB, UserDB, PassDB, NameDB, 'write', f"UPDATE `whatsapp`.`stage` SET `stage` = '3' WHERE(`id` = '{str(id[0])}') and (`chatid` = '{str(data['senderData']['chatId'])}');")
+    elif int(stage[0]) == 3:
+        print("!!!!stage 3!!!!!")
+        time = str(data['messageData']['buttonsResponseMessage']['selectedButtonText']).split()
+        print(time)
+        id_stage = database(HostDB, UserDB, PassDB, NameDB, 'read',f"SELECT id FROM whatsapp.stage where stage.chatid='{str(data['senderData']['chatId'])}';")
+        id_new_order = database(HostDB, UserDB, PassDB, NameDB, 'read',f"SELECT id FROM whatsapp.new_order where new_order.chatid='{str(data['senderData']['chatId'])}';")
+        date = str(database(HostDB, UserDB, PassDB, NameDB, 'read',f"SELECT date FROM whatsapp.new_order where new_order.chatid='{str(data['senderData']['chatId'])}';")[0]).partition('T')[0]
+        print(date)
+        print(database(HostDB, UserDB, PassDB, NameDB, 'write',f"UPDATE `whatsapp`.`new_order` SET `datefrom` = '{date}T{time[1]}:00:00', `dateBy` = '{date}T{time[3]}:00:00' WHERE (`id` = '{id_new_order}');"))
 
     else:
         message = f"На адрес: {str((api1c[0])['address'])}\\nдоставка доступна:\\n"
         button = []
         for elem in api1c[1]:
-            print("elem: " + str(elem))
+            print("elem!!!!: " + str(elem))
+            print("Что за хуйня!!!")
             if not (elem['date'] in button):
                 button.append(elem)
-        print(button)
+            else:
+                print(elem['date'])
+        print("кнопка" + str(editing_date(button)))
         WC.SendButton(str(data['senderData']['chatId']), message, FormButtons(editing_date(button)))
         id = database(HostDB, UserDB, PassDB, NameDB, 'read',
                       "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
@@ -446,7 +529,9 @@ def gateway(data):
         sql = "SELECT stage.stage_type FROM whatsapp.stage where stage.chatid='" + str(data['senderData']['chatId']) + "';"
         #print(sql)
         stage = (database(HostDB, UserDB, PassDB, NameDB, 'read', sql))
-        print(stage)
+        print("stage:" + str(stage))
+        #if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
+        #    print(data['messageData']['buttonsResponseMessage'])
         if stage == None:
             #Если первая беседа
             '''message = str(greeting_generator()) +'\\nМеня зовут Ева👩🏼‍💼, я электронный менеджер по приему *заказов воды «Легенда жизни»*\\n' \
@@ -456,34 +541,37 @@ def gateway(data):
             message = f'{str(greeting_generator())} \\nМеня зовут Ева👩🏼‍💼, я электронный менеджер по приему *заказов воды «Легенда жизни»*\\n' \
                                         'Для нашего общения, я подготовила удобное меню\\n'
             #print(message)
-            WC.SendButton(str(data['senderData']['chatId']), message, buttons=FormButtons(["Повторить заказ", "Оформить первый заказ", "Узнать о бонусах за онлайн заказ"]), footer='выберите нужный вариант')
+            WC.SendButton(str(data['senderData']['chatId']), message, buttons=FormButtons(['Повторить заказ', 'Оформить первый заказ', 'Узнать о бонусах за онлайн заказ']), footer='выберите нужный вариант')
             sql = "INSERT INTO `whatsapp`.`stage` (`chatid`, `timestamp`, `stage`) VALUES ('" + str(data['senderData']['chatId'] + "', '" + str(data['timestamp'])) + "', '1');"
             #print(sql)
-            print(database(HostDB, UserDB, PassDB, NameDB, 'write', sql))
-        elif stage == 'rep_stage':
+            database(HostDB, UserDB, PassDB, NameDB, 'write', sql)
+
+        elif data['messageData']['typeMessage'] == 'buttonsResponseMessage' and str(data['messageData']['buttonsResponseMessage']['selectedButtonText']) == 'Повторить заказ':
+            id = database(HostDB, UserDB, PassDB, NameDB, 'read',
+                          "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
+                              data['senderData']['chatId']) + "';")
+            database(HostDB, UserDB, PassDB, NameDB, 'write',
+                     "UPDATE `whatsapp`.`stage` SET `stage_type` = 'rep_stage' WHERE(`id` = '" + str(id[0]) + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
+            repeate_order(data)
+            return 200
+        elif data['messageData']['typeMessage'] == 'buttonsResponseMessage' and str(data['messageData']['buttonsResponseMessage']['selectedButtonText']) == 'Оформить первый заказ':
+            print("Оформляем первый заказ!")
+            return 200
+        elif data['messageData']['typeMessage'] == 'buttonsResponseMessage' and str(data['messageData']['buttonsResponseMessage']['selectedButtonText']) == 'Узнать о бонусах за онлайн заказ':
+            print("Узнаем о бонусах")
+            WC.SendButton(str(data['senderData']['chatId']), 'Как получить полезные подарки?', buttons=FormButtons(
+                ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
+                          footer='выберите нужный вариант')
+            return 200
+
+        elif data['messageData']['typeMessage'] == 'buttonsResponseMessage' and 'rep_stage' in stage:
             repeate_order(data)
         else:
-            if data['messageData']['typeMessage'] == 'buttonsResponseMessage':
-                if int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 1:
-                    id = database(HostDB, UserDB, PassDB, NameDB, 'read',
-                                  "SELECT id FROM whatsapp.stage where stage.chatid='" + str(
-                                      data['senderData']['chatId']) + "';")
-                    database(HostDB, UserDB, PassDB, NameDB, 'write',
-                             "UPDATE `whatsapp`.`stage` SET `stage_type` = 'rep_stage' WHERE(`id` = '" + str(id[0]) + "') and (`chatid` = '" + str(data['senderData']['chatId']) + "');")
-                    repeate_order(data)
-                elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 2:
-                    print("Оформляем первый заказ!")
-                elif int(data['messageData']['buttonsResponseMessage']['selectedButtonId']) == 3:
-                    print("Узнаем о бонусах")
-                    WC.SendButton(str(data['senderData']['chatId']), 'Как получить полезные подарки?', buttons=FormButtons(
-                        ["Повторить заказ", "Оформить первый заказ", "Перевести в чат с оператором"]),
-                                  footer='выберите нужный вариант')
-            else:
-                print("Не правильный ответ")
+            print("Не правильный ответ")
+            return 200
 
     else:
         return 200
-    pass
 #rint(str(FormButtons(buttons)))
 
 dbmigrate()
@@ -514,11 +602,22 @@ except pymysql.Error as err:
 
 app = Flask(__name__)
 
+class Compute(Thread):
+    def __init__(self, request):
+        Thread.__init__(self)
+        self.request = request
+
+    def run(self):
+        logingdata(self.request.json)
+        gateway(self.request.json)
+
 @app.route('/', methods=['POST'])
 def hello():
     #print(request.json)
-    logingdata(request.json)
-    gateway(request.json)
+    thread_a = Compute(request.__copy__())
+    thread_a.start()
     return '200'
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=9001)
+    logingdata(request.json)
+    gateway(request.json)

@@ -67,3 +67,10 @@ CREATE TABLE `whatsapp`.`stage_error` (
   `stage` VARCHAR(1000) NULL DEFAULT 'Колличество ошибок',
   PRIMARY KEY (`id`, `chatid`))
 COMMENT = 'все что не обрабатывается';
+CREATE TABLE `whatsapp`.`new_order` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `chatid` VARCHAR(45) NULL,
+  `date_order` VARCHAR(45) NULL,
+  `time_delivery` VARCHAR(45) NULL,
+  PRIMARY KEY (`id`))
+COMMENT = 'для сбора нового заказа';
