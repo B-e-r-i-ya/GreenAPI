@@ -1,7 +1,7 @@
 from bot.bot import Bot
 from bot.handler import MessageHandler
 
-TOKEN = "001.2924220722.2165912858:1005884797" #your token here
+TOKEN = "" #your token here
 
 bot = Bot(token=TOKEN)
 bot.send_text(chat_id="w.done@777-777.org", text="test")
