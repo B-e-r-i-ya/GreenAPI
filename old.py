@@ -69,7 +69,7 @@ class whatsapp_class():
     def new_order(self, request):
         resp = requests.post(url='https://botapi.777-777.org/v1/neworder',
                              headers={'Authorization': 'RCh6tsWymuuGP7VZh3HYsNWLwckMVnVn'},
-                             json=users_data[str(request.json["senderData"]["chatId"])]['new_order'])
+                             json=users_data([str(request.json["senderData"]["chatId"])]['new_order'])
         return resp
 
     def phone(self, phone):
