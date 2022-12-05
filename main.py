@@ -8,15 +8,15 @@ from threading import Thread
 #===========Variables===============
 
 
-UserDB = 'root'
-PassDB = 'BSqr1988ZD'
+UserDB = ''
+PassDB = ''
 HostDB = 'localhost'
 NameDB = 'whatsapp'
 FilePath = "file/"
-WebhookURL = "http://31.186.145.79:9001"
-URL1CAPI = "http://gw.777-777.org:28880/trade_razrab4/hs/atczak/getdatetimechat/"
-URL1CAPIUSER = 'myteam'
-URL1CAPIPASS = '777777'
+WebhookURL = ""
+URL1CAPI = ""
+URL1CAPIUSER = ''
+URL1CAPIPASS = ''
 
 class GreenAPI():
     idInstance = ''
